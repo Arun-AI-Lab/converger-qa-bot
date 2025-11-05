@@ -8,7 +8,6 @@ __pycache__/
 
 # Data
 data/uploads/
-data/vector_store/
 data/temp/
 *.faiss
 *.npy
