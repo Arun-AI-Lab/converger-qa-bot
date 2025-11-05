@@ -1,0 +1,28 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pkl
+
+# Data
+data/uploads/
+data/vector_store/
+data/temp/
+*.faiss
+*.npy
+
+# Environment files
+.env
+.env.*
+
+# Logs and caches
+*.log
+.DS_Store
+.cache/
+.ipynb_checkpoints/
+
+# OS junk
+Thumbs.db
+desktop.ini
