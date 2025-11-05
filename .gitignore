@@ -12,7 +12,6 @@ data/temp/
 # Misc
 *.npy
 
-
 # Environment files
 .env
 .env.*
