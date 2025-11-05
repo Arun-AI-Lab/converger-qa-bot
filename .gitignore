@@ -4,23 +4,14 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-<<<<<<< HEAD
-
 
 # Data
 data/uploads/
 data/temp/
 
-=======
-*.pkl
-
-# Data
-data/uploads/
-data/vector_store/
-data/temp/
-*.faiss
->>>>>>> origin/dev
+# Misc
 *.npy
+
 
 # Environment files
 .env
