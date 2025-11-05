@@ -4,12 +4,12 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-*.pkl
+
 
 # Data
 data/uploads/
 data/temp/
-*.faiss
+
 *.npy
 
 # Environment files
