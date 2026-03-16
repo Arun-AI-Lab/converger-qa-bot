@@ -36,17 +36,28 @@ app.add_middleware(
 app.include_router(api_router, prefix="/api")
 
 # ============================================================
-# ⚙️ Startup Event - Directory Checks
+# ⚙️ Startup Event - Directory Checks & Metadata Aggregation
 # ============================================================
 
 @app.on_event("startup")
 def startup_event():
-    """Ensure all necessary directories exist on startup."""
+    """Ensure all necessary directories exist and cache metadata stats on startup."""
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
     os.makedirs(settings.VECTOR_STORE_PATH, exist_ok=True)
     print(f"✅ {settings.APP_NAME} started successfully.")
     print(f"📂 Upload Directory: {settings.UPLOAD_DIR}")
     print(f"💾 Vector Store Path: {settings.VECTOR_STORE_PATH}")
+    
+    # Pre-aggregate metadata for faster summary queries
+    try:
+        from app.utils import aggregate_metadata_from_faiss
+        agg = aggregate_metadata_from_faiss(settings.VECTOR_STORE_PATH)
+        if agg['total_files'] > 0:
+            print(f"📊 Indexed Files: {agg['total_files']} | Contracts: {agg['total_contracts']} | Regions: {len(agg['regions'])}")
+        else:
+            print(f"⚠️  No documents indexed yet.")
+    except Exception as e:
+        print(f"⚠️  Could not pre-aggregate metadata: {e}")
 
 # ============================================================
 # 🏠 Root Route

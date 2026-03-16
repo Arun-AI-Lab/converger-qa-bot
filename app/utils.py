@@ -3,7 +3,7 @@ import os
 import base64
 import time
 import tempfile
-from typing import List
+from typing import List, Dict
 from PyPDF2 import PdfReader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
@@ -230,3 +230,80 @@ def count_unique_regions(metadata_list: List[dict]) -> int:
     """Counts unique regions across all contracts."""
     regions = {m.get("region", "").strip().lower() for m in metadata_list if m.get("region")}
     return len(regions)
+
+
+# ============================================================
+# 📊 Metadata Aggregation for Summary Questions
+# ============================================================
+
+def aggregate_metadata_from_faiss(vectorstore_path: str) -> Dict:
+    """
+    Loads FAISS index and aggregates all metadata from indexed chunks.
+    Returns: {
+        'total_files': int,
+        'total_contracts': int,
+        'total_general_files': int,
+        'contract_types': {type: count},
+        'regions': {region: count},
+        'party_types': {party_type: count},
+        'region_contract_summary': {region: {contract_type: count}}
+    }
+    """
+    vectorstore = load_faiss_index(vectorstore_path)
+    if not vectorstore:
+        return {
+            'total_files': 0,
+            'total_contracts': 0,
+            'total_general_files': 0,
+            'contract_types': {},
+            'regions': {},
+            'party_types': {},
+            'region_contract_summary': {}
+        }
+    
+    # Extract all docs with metadata from FAISS docstore
+    all_docs = vectorstore.docstore._dict.values()
+    
+    files_seen = set()
+    contract_type_counts = {}
+    region_counts = {}
+    party_type_counts = {}
+    region_contract_map = {}
+    
+    for doc in all_docs:
+        meta = doc.metadata if hasattr(doc, 'metadata') else {}
+        
+        # Count unique files
+        filename = meta.get('filename', 'unknown')
+        files_seen.add(filename)
+        
+        # Count contract types
+        ctype = meta.get('contract_type', 'General')
+        contract_type_counts[ctype] = contract_type_counts.get(ctype, 0) + 1
+        
+        # Count regions
+        region = meta.get('region', 'Australia')
+        region_counts[region] = region_counts.get(region, 0) + 1
+        
+        # Count party types
+        ptype = meta.get('party_type', 'General')
+        party_type_counts[ptype] = party_type_counts.get(ptype, 0) + 1
+        
+        # Region + Contract Type map
+        if region not in region_contract_map:
+            region_contract_map[region] = {}
+        region_contract_map[region][ctype] = region_contract_map[region].get(ctype, 0) + 1
+    
+    total_files = len(files_seen)
+    total_contracts = sum(1 for ct in contract_type_counts.keys() if 'contract' in ct.lower())
+    total_general = contract_type_counts.get('General', 0)
+    
+    return {
+        'total_files': total_files,
+        'total_contracts': total_contracts,
+        'total_general_files': total_general,
+        'contract_types': contract_type_counts,
+        'regions': region_counts,
+        'party_types': party_type_counts,
+        'region_contract_summary': region_contract_map
+    }
