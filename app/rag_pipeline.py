@@ -27,11 +27,16 @@ class RAGPipeline:
     # 🔍 Retrieval
     # -------------------------------------------------------------------------
     def retrieve_docs(self, query: str, k: int = 12) -> List[Dict]:
-        """Retrieve relevant chunks from FAISS."""
+        """Retrieve relevant chunks from FAISS, filtered by relevance score."""
         if not self.vectorstore:
             return []
-        docs = self.vectorstore.similarity_search(query, k=k)
-        return [{"text": d.page_content, "metadata": d.metadata} for d in docs]
+        docs_and_scores = self.vectorstore.similarity_search_with_relevance_scores(query, k=k)
+        # Keep only chunks with relevance score >= 0.5
+        filtered = [(doc, score) for doc, score in docs_and_scores if score >= 0.5]
+        # Fall back to top-3 if nothing passes the threshold
+        if not filtered:
+            filtered = docs_and_scores[:3]
+        return [{"text": d.page_content, "metadata": d.metadata, "score": score} for d, score in filtered]
 
     def _unique_sources(self, docs: List[Dict]) -> List[SourceReference]:
         """Extract unique file references."""
@@ -50,7 +55,7 @@ class RAGPipeline:
     def _is_summary_question(self, question: str) -> bool:
         """Detect if question is asking for summary/aggregate stats."""
         summary_keywords = [
-            'how many', 'total', 'count', 'list', 'overview', 'summary',
+            'how many', 'total', 'count', 'overview',
             'all contracts', 'all files', 'regions', 'contract types',
             'which contracts', 'how many contracts', 'statistics', 'stats',
             'breakdown', 'distribution', 'across regions', 'by type'
@@ -122,14 +127,23 @@ ANSWER:"""
         Generate answer from retrieved documents.
         Uses gpt-4o, no metadata guardrails.
         """
-        context_chunks = "\n\n---\n\n".join(
-            [d["text"] for d in retrieved_docs[:8]]
-        ) if retrieved_docs else "No documents found."
+        context_parts = []
+        for d in retrieved_docs:
+            source = d.get("metadata", {}).get("filename", "unknown")
+            context_parts.append(f"[Source: {source}]\n{d['text']}")
+        context_chunks = "\n\n---\n\n".join(context_parts) if context_parts else "No documents found."
 
-        prompt = f"""You are a helpful assistant answering questions about contracts and documents.
+        prompt = f"""You are a helpful assistant answering questions about contracts and legal documents.
 
-Based on the documents provided below, answer the following question directly and accurately.
-If the information is not in the documents, say so clearly.
+You have been given relevant document excerpts. Compile everything relevant and present a well-structured, descriptive answer.
+
+Guidelines:
+- Write in a professional, readable style — not just a raw bullet list. Add a brief intro sentence that frames what was found.
+- When listing items (clauses, conditions, etc.), give each item a short description so the answer is informative.
+- Group related points together where it makes sense.
+- Never open with phrases like "the documents do not...", "the excerpts provided...", or any hedging language.
+- Never mention chunks, excerpts, or the retrieval process.
+- Only say information is unavailable if none of the documents contain anything relevant to the question.
 
 DOCUMENTS:
 {context_chunks}
@@ -147,7 +161,7 @@ ANSWER:"""
                 },
                 {"role": "user", "content": prompt},
             ],
-            temperature=0.7,
+            temperature=0.1,
             max_tokens=1500,
         )
 
