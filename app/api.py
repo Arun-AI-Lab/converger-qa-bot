@@ -13,7 +13,7 @@ async def query_contract(request: QueryRequest):
     pipeline = RAGPipeline()
     response = pipeline.answer_question(request.question)
 
-    # ✅ Return only what frontend needs
     return {
-        "answer": response.answer.strip()
+        "answer": response.answer.strip(),
+        "sources": [s.model_dump(exclude_none=True) for s in (response.sources or [])]
     }

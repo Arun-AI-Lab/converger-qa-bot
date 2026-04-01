@@ -39,14 +39,19 @@ class RAGPipeline:
         return [{"text": d.page_content, "metadata": d.metadata, "score": score} for d, score in filtered]
 
     def _unique_sources(self, docs: List[Dict]) -> List[SourceReference]:
-        """Extract unique file references."""
+        """Extract unique file references with metadata and excerpt."""
         seen, sources = set(), []
         for d in docs:
             meta = d.get("metadata") or {}
             fn = meta.get("filename") or "unknown"
             if fn not in seen:
                 seen.add(fn)
-                sources.append(SourceReference(filename=fn))
+                raw_text = d.get("text", "")
+                snippet = raw_text[:150].rsplit(" ", 1)[0] + "..." if len(raw_text) > 150 else raw_text
+                sources.append(SourceReference(
+                    filename=fn,
+                    excerpt=snippet or None,
+                ))
         return sources
 
     # -------------------------------------------------------------------------

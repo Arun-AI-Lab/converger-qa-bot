@@ -22,7 +22,7 @@ class SummaryStats(BaseModel):
 
 class SourceReference(BaseModel):
     filename: str
-    page_numbers: Optional[List[int]] = None
+    excerpt: Optional[str] = None
 
 
 class AnswerResponse(BaseModel):
