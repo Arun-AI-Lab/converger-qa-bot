@@ -7,13 +7,21 @@ router = APIRouter()
 @router.post("/query")
 async def query_contract(request: QueryRequest):
     """
-    Simplified query endpoint for frontend integration.
-    Returns only the formatted answer string for chat display.
+    Query endpoint for frontend integration.
+    Returns answer with sources appended as formatted text.
     """
     pipeline = RAGPipeline()
     response = pipeline.answer_question(request.question)
 
-    return {
-        "answer": response.answer.strip(),
-        "sources": [s.model_dump(exclude_none=True) for s in (response.sources or [])]
-    }
+    answer = response.answer.strip()
+
+    if response.sources:
+        source_lines = []
+        for s in response.sources:
+            line = f"- {s.filename}"
+            if s.excerpt:
+                line += f'\n  "{s.excerpt}"'
+            source_lines.append(line)
+        answer += "\n\n---\n**Sources:**\n" + "\n".join(source_lines)
+
+    return {"answer": answer}
